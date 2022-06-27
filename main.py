@@ -2,7 +2,6 @@ import requests
 from typing import Union,Optional
 import json
 from urllib import parse
-import constant
 
 # Xes作品信息
 class XesWork():
