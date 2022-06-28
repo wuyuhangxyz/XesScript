@@ -2,6 +2,8 @@ import requests
 from typing import Union,Optional
 import json
 from urllib import parse
+import sys
+import websocket
 
 # Xes作品信息
 class XesWork():
@@ -330,31 +332,234 @@ class XesOneself():
         response = requests.post(url,headers=self.headers,json = payloads)
 
 # Xes首页
-class XesIndex():
-    def __init__(self,cookie:Optional[str] = None) -> None:
-        self.cookie = cookie
-        self.headers = {
-            'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.63 Safari/537.36 Edg/102.0.1245.33',
-            'Cookie':cookie
-            }
-    
-    def getModules(self) -> dict:
-        url = "https://code.xueersi.com/api/index/works/modules"
-        response = requests.get(url,headers=self.headers).text
-        data = json.loads(response)
-        return data
+class XesIndex:
+    def __init__(self,cookie:str) -> None:
+        self.Follows = self.follows(cookie)
+        self.Index = self.modules(1,cookie)
+        self.Classroom = self.modules(1,cookie)
+        self.Teacher = self.modules(3,cookie)
 
-    def getFollows(self) -> dict:
-        url = "https://code.xueersi.com/api/index/works/follows"
-        response = requests.get(url,headers=self.headers).text
-        data = json.loads(response)
-        return data
+    @classmethod
+    def getHeaders(self,cookie:str) -> dict:
+        if cookie:
+            headers = {
+                'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.63 Safari/537.36 Edg/102.0.1245.33',
+                'Cookie':cookie
+                }
+        else:
+            headers = {
+                'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.63 Safari/537.36 Edg/102.0.1245.33',
+                }
+        return headers
 
-    def getForyou(self) -> dict:
-        url = "https://code.xueersi.com/api/pai/projects/for_you"
-        response = requests.get(url,headers=self.headers).text
-        data = json.loads(response)
-        return data
+    class follows:
+        def __init__(self,cookie:str):
+            self.cookie = cookie
+            self.headers = XesIndex.getHeaders(self.cookie)
+            self.primary = self.getFollows()
+        def getFollows(self):
+            return json.loads(requests.get('https://code.xueersi.com/api/index/works/follows', headers=self.headers).text)
+        def getLikes(self) -> int:
+            return [i['likes'] for i in self.primary['data']]
+        def getUnlikes(self) -> int:
+            return [i['unlikes'] for i in self.primary['data']]
+        def getFavorites(self) -> int:
+            return [i['favorites'] for i in self.primary['data']]
+        def getUserid(self) -> int:
+            return [i['user_id'] for i in self.primary['data']]
+        def getUsername(self) -> int:
+            return [i['username'] for i in self.primary['data']]
+        def getCommentsnum(self) -> int:
+            return [i['comments'] for i in self.primary['data']]
+        def getCreatedat(self) -> str:
+            return [i['created_at'] for i in self.primary['data']]
+        def getDeletedat(self) -> str:
+            return [i['deleted_at'] for i in self.primary['data']]
+        def getHiddencode(self) -> int:
+            return [i['hidden_code'] for i in self.primary['data']]
+        def getManual(self) -> int:
+            return [i['manual_weight'] for i in self.primary['data']]
+        def getModifiedat(self) -> str:
+            return [i['modified_at'] for i in self.primary['data']]
+        def getWorkname(self) -> str:
+            return [i['name'] for i in self.primary['data']]
+        def getLang(self) -> str:
+            return [i['lang'] for i in self.primary['data']]
+        def getID(self) -> int:
+            return [i['id'] for i in self.primary['data']]
+        def getOriginalid(self) -> int:
+            return [i['original_id'] for i in self.primary['data']]
+        def getScore(self) -> float:
+            lst = []
+            for i in self.primary['data']:
+                try:
+                    lst.append(i["popular_score"])
+                except:
+                    lst.append('NaN')
+        def getIspublic(self) -> int:
+            return [i['published'] for i in self.primary['data']]
+        def getPublishedat(self) -> str:
+            return [i['published_at'] for i in self.primary['data']]
+        def getRemoved(self) -> int:
+            return [i['removed'] for i in self.primary['data']]
+        def getSourceview(self) -> int:
+            return [i['source_code_views'] for i in self.primary['data']]
+        def getThumbnail(self) -> str:
+            return [i['thumbnail'] for i in self.primary['data']]
+        def getTopic(self) -> str:
+            return [i['topic_id'] for i in self.primary['data']]
+        def getType(self) -> str:
+            return [i['type'] for i in self.primary['data']]
+        def getUpdatedat(self) -> str:
+            return [i['updated_at'] for i in self.primary['data']]
+        def getVersion(self) -> str:
+            return [i['version'] for i in self.primary['data']]
+        def getViews(self) -> int:
+            return [i['views'] for i in self.primary['data']]
+
+    class modules:
+        def __init__(self,input_index:int,cookie:Optional[str] = None):
+            """
+            :param cookie:Cookie
+            :param input_index:
+                   1 -> 首页
+                   2 -> 开眼课堂
+                   3 -> 老师的作品
+            """
+            self.cookie = cookie
+            self.headers = XesIndex.getHeaders(self.cookie)
+            if input_index == 1:index1 = 0
+            elif input_index == 2:index1 = 1
+            else:index1 = 4
+            self.primary = self.getModules()["data"][index1]["items"]
+
+        def getModules(self) -> dict:
+            url = "https://code.xueersi.com/api/index/works/modules"
+            response = requests.get(url,headers=self.headers).text
+            data = json.loads(response)
+            return data
+        def getLikes(self) -> int:
+            return [i['likes'] for i in self.primary]
+        def getUnlikes(self) -> int:
+            return [i['unlikes'] for i in self.primary]
+        def getFavorites(self) -> int:
+            return [i['favorites'] for i in self.primary]
+        def getUserid(self) -> int:
+            return [i['user_id'] for i in self.primary]
+        def getUsername(self) -> int:
+            return [i['username'] for i in self.primary]
+        def getCommentsnum(self) -> int:
+            return [i['comments'] for i in self.primary]
+        def getCreatedat(self) -> str:
+            return [i['created_at'] for i in self.primary]
+        def getDeletedat(self) -> str:
+            return [i['deleted_at'] for i in self.primary]
+        def getHiddencode(self) -> int:
+            return [i['hidden_code'] for i in self.primary]
+        def getManual(self) -> int:
+            return [i['manual_weight'] for i in self.primary]
+        def getModifiedat(self) -> str:
+            return [i['modified_at'] for i in self.primary]
+        def getWorkname(self) -> str:
+            return [i['name'] for i in self.primary]
+        def getLang(self) -> str:
+            return [i['lang'] for i in self.primary]
+        def getID(self) -> int:
+            return [i['id'] for i in self.primary]
+        def getOriginalid(self) -> int:
+            return [i['original_id'] for i in self.primary]
+        def getScore(self) -> float:
+            lst = []
+            for i in self.primary:
+                try:
+                    lst.append(i["popular_score"])
+                except:
+                    lst.append('NaN')
+        def getIspublic(self) -> int:
+            return [i['published'] for i in self.primary]
+        def getPublishedat(self) -> str:
+            return [i['published_at'] for i in self.primary]
+        def getRemoved(self) -> int:
+            return [i['removed'] for i in self.primary]
+        def getSourceview(self) -> int:
+            return [i['source_code_views'] for i in self.primary]
+        def getThumbnail(self) -> str:
+            return [i['thumbnail'] for i in self.primary]
+        def getTopic(self) -> str:
+            return [i['topic_id'] for i in self.primary]
+        def getType(self) -> str:
+            return [i['type'] for i in self.primary]
+        def getUpdatedat(self) -> str:
+            return [i['updated_at'] for i in self.primary]
+        def getVersion(self) -> str:
+            return [i['version'] for i in self.primary]
+        def getViews(self) -> int:
+            return [i['views'] for i in self.primary]
+
+    class foryou:
+        def __init__(self,cookie:str):
+            self.cookie = cookie
+            self.headers = XesIndex.getHeaders(self.cookie)
+            self.primary = self.getFor_you()['data']['projects']
+        def getFor_you(self):
+            return json.loads(requests.get('https://code.xueersi.com/api/pai/projects/for_you', headers=self.headers).text)
+        def getLikes(self) -> int:
+            return [i['likes'] for i in self.primary]
+        def getUnlikes(self) -> int:
+            return [i['unlikes'] for i in self.primary]
+        def getFavorites(self) -> int:
+            return [i['favorites'] for i in self.primary]
+        def getUserid(self) -> int:
+            return [i['user_id'] for i in self.primary]
+        def getUsername(self) -> int:
+            return [i['username'] for i in self.primary]
+        def getCommentsnum(self) -> int:
+            return [i['comments'] for i in self.primary]
+        def getCreatedat(self) -> str:
+            return [i['created_at'] for i in self.primary]
+        def getDeletedat(self) -> str:
+            return [i['deleted_at'] for i in self.primary]
+        def getHiddencode(self) -> int:
+            return [i['hidden_code'] for i in self.primary]
+        def getManual(self) -> int:
+            return [i['manual_weight'] for i in self.primary]
+        def getModifiedat(self) -> str:
+            return [i['modified_at'] for i in self.primary]
+        def getWorkname(self) -> str:
+            return [i['name'] for i in self.primary]
+        def getLang(self) -> str:
+            return [i['lang'] for i in self.primary]
+        def getID(self) -> int:
+            return [i['id'] for i in self.primary]
+        def getOriginalid(self) -> int:
+            return [i['original_id'] for i in self.primary]
+        def getScore(self) -> float:
+            lst = []
+            for i in self.primary:
+                try:
+                    lst.append(i["popular_score"])
+                except:
+                    lst.append('NaN')
+        def getIspublic(self) -> int:
+            return [i['published'] for i in self.primary]
+        def getPublishedat(self) -> str:
+            return [i['published_at'] for i in self.primary]
+        def getRemoved(self) -> int:
+            return [i['removed'] for i in self.primary]
+        def getSourceview(self) -> int:
+            return [i['source_code_views'] for i in self.primary]
+        def getThumbnail(self) -> str:
+            return [i['thumbnail'] for i in self.primary]
+        def getTopic(self) -> str:
+            return [i['topic_id'] for i in self.primary]
+        def getType(self) -> str:
+            return [i['type'] for i in self.primary]
+        def getUpdatedat(self) -> str:
+            return [i['updated_at'] for i in self.primary]
+        def getVersion(self) -> str:
+            return [i['version'] for i in self.primary]
+        def getViews(self) -> int:
+            return [i['views'] for i in self.primary]
 
 # Xes发现
 class XesExplore():
@@ -398,5 +603,286 @@ class XesBehavior():
             'Cookie':cookie
             }
 
-    def doLike(workurl:str):
+    def parseWorkURL(self,url:str) -> dict:
+        url = parse.urlparse(url)
+        parad = parse.parse_qs(url.query)
+        return parad
+
+    def getTopicID(self,workurl:str):
+        urldata = self.parseWorkURL(workurl)
+        pid = urldata['pid'][0]
+        lang = urldata['lang'][0]
+        if lang == 'scratch':
+            topic_id = f'CS_{pid}'
+        else:
+            form = urldata['form'][0]
+            if form == "cpp":
+                topic_id = f'CC_{pid}'
+            else:
+                topic_id = f'CP_{pid}'
+        return topic_id
+
+    def doLike(self,workurl:str):
+        urldata= self.parseWorkURL(workurl)
+        pid = urldata['pid'][0]
+        lang = urldata['lang'][0]
+        if lang == "scratch":
+            url = f'https://code.xueersi.com/api/projects/{pid}/like'
+            payload = {
+                "id":pid,
+                "lang":"scratch"
+            }
+        else:
+            form = urldata['form'][0]
+            if form == "cpp":
+                url = f'https://code.xueersi.com/api/compilers/{pid}/like'
+                payload = {
+                    "form":"cpp",
+                    "id":pid,
+                    "lang":"code"
+                }
+            else:
+                url = f'https://code.xueersi.com/api/python/{pid}/like'
+                payload = {
+                    "form":form,
+                    "id":pid,
+                    "lang":"code"
+                }
+        response = requests.post(url,headers=self.headers,json = payload)
+
+    def doCannellike(self,workurl:str):
+        urldata= self.parseWorkURL(workurl)
+        pid = urldata['pid'][0]
+        lang = urldata['lang'][0]
+        if lang == "scratch":
+            url = f'https://code.xueersi.com/api/projects/{pid}/cancel_like'
+            payload = {
+                "id":pid,
+                "lang":"scratch"
+            }
+        else:
+            form = urldata['form'][0]
+            if form == "cpp":
+                url = f'https://code.xueersi.com/api/compilers/{pid}/cancel_like'
+                payload = {
+                    "form":"cpp",
+                    "id":pid,
+                    "lang":"code"
+                }
+            else:
+                url = f'https://code.xueersi.com/api/python/{pid}/cancel_like'
+                payload = {
+                    "form":form,
+                    "id":pid,
+                    "lang":"code"
+                }
+        response = requests.post(url,headers=self.headers,json = payload)
+
+    def doUnlike(self,workurl:str):
+        urldata= self.parseWorkURL(workurl)
+        pid = urldata['pid'][0]
+        lang = urldata['lang'][0]
+        if lang == "scratch":
+            url = f'https://code.xueersi.com/api/projects/{pid}/unlike'
+            payload = {
+                "id":pid,
+                "lang":"scratch"
+            }
+        else:
+            form = urldata['form'][0]
+            if form == "cpp":
+                url = f'https://code.xueersi.com/api/compilers/{pid}/unlike'
+                payload = {
+                    "form":"cpp",
+                    "id":pid,
+                    "lang":"code"
+                }
+            else:
+                url = f'https://code.xueersi.com/api/python/{pid}/unlike'
+                payload = {
+                    "form":form,
+                    "id":pid,
+                    "lang":"code"
+                }
+        response = requests.post(url,headers=self.headers,json = payload)
+
+    def doCannelunlike(self,workurl:str):
+        urldata= self.parseWorkURL(workurl)
+        pid = urldata['pid'][0]
+        lang = urldata['lang'][0]
+        if lang == "scratch":
+            url = f'https://code.xueersi.com/api/projects/{pid}/cancel_unlike'
+            payload = {
+                "id":pid,
+                "lang":"scratch"
+            }
+        else:
+            form = urldata['form'][0]
+            if form == "cpp":
+                url = f'https://code.xueersi.com/api/compilers/{pid}/cancel_unlike'
+                payload = {
+                    "form":"cpp",
+                    "id":pid,
+                    "lang":"code"
+                }
+            else:
+                url = f'https://code.xueersi.com/api/python/{pid}/cancel_unlike'
+                payload = {
+                    "form":form,
+                    "id":pid,
+                    "lang":"code"
+                }
+        response = requests.post(url,headers=self.headers,json = payload)
+
+    def doFavorite(self,workurl:str,state:int):
+        topic_id = self.getTopicID()
+        payload = {
+            "state":state,
+            "topic_id":topic_id
+            }
+        requests.post('https://code.xueersi.com/api/space/favorite',headers=self.headers,json = payload)
+
+    def sendComment(self,workurl:str,text:str,targetid:int):
+        """
+        :param targetid:回复作品时targetid为0,回复作品下的评论时targetid为评论的id号
+        """
+        if len(text) > 200:
+            raise ValueError("The length of the text argument cannot be greater than 200")
+        topic_id = self.getTopicID(workurl)
+        payload = {
+            "appid":'1001108',
+            "content":text,
+            "target_id":targetid,
+            "topic_id":topic_id
+        }
+        requests.post('https://code.xueersi.com/api/comments/submit',headers=self.headers,json=payload)
+    
+    def followUser(self,userid:int,state:int):
+        payload = {
+            "followed_user_id":str(userid),
+            "state":state
+        }
+        requests.post('https://code.xueersi.com/api/space/follow',headers=self.headers,json=payload)
+
+class XesCloud:
+    def __init__(self,name):
+        """
+        :param name:Variable Name
+        """
+        if isinstance(name,str):
+            self.name = name
+        else:
+            raise TypeError("变量名只能用字符串")
+
+    def getCookies(self):
+        cookies = ""
+        if len(sys.argv) > 1:
+            try:
+                cookies = json.loads(sys.argv[1])["cookies"]
+            except:
+                print("未登录")
+                sys.exit(0)
+        return cookies
+
+    def getID(self):
+        cookie = self.getCookies()
+        id = ''
+        for i in cookie.split(";"):
+            id = i[8:] if i[1:7] == "stu_id" else id
+        return id
+
+    def open(self) -> None:
+        self.ws = websocket.create_connection(f'wss://api.xueersi.com/codecloudvariable/ws:80',timeout=10)
+
+    def close(self) -> None:
+        try:
+            self.ws.close()
+        except NameError:
+            raise Exception("连接不存在,您没有建立过连接,请使用open函数建立连接\neg.\ncloud=XesCloud('num')\ncloud.open()")
+
+    def create(self) -> None:
+        message = {
+            "method": "create",
+            "user": str(self.getID()),
+            "project_id": "20547605",
+            "name": "☁ "+self.name,
+            "value": 0
+        }
+        try:
+            self.ws.send(json.dumps(message))
+        except NameError:
+            raise Exception("连接不存在,您没有建立过连接,请使用open函数建立连接\neg.\ncloud=XesCloud('num')\ncloud.open()")
+
+    def remove(self) -> None:
+        message = {
+            "method": "delete",
+            "name": "☁ "+self.name,
+            "project_id": "20547605",
+            "user": str(self.getID())
+        }
+        try:
+            self.ws.send(json.dumps(message))
+        except NameError:
+            raise Exception("连接不存在,您没有建立过连接,请使用open函数建立连接\neg.\ncloud=XesCloud('num')\ncloud.open()")
+
+    def write(self,value) -> None:
+        """
+        :param value:Value
+        """
+        message = {
+            "method":"set",
+            "user":str(self.getID()),
+            "project_id":"20547605",
+            "name":"☁ "+self.name,
+            "value":value
+        }
+        try:
+            self.ws.send(json.dumps(message))
+        except NameError:
+            raise Exception("连接不存在,您没有建立过连接,请使用open函数建立连接\neg.\ncloud=XesCloud('num')\ncloud.open()")
+        self.close()
+
+    def read(self) -> int:
+        self.ws = websocket.create_connection(f'wss://api.xueersi.com/codecloudvariable/ws:80',timeout=10)
+        message = {"method": "handshake", 
+            "user": str(self.getID()),
+            "project_id": "20547605"
+        }
+        dic = {}
+        try:
+            while True:
+                self.ws.send(json.dumps(message))
+                r = self.ws.recv()
+                print(r)
+                value = str(json.loads(r)['value'])
+                name = str(json.loads(r)['name'])
+                if name in dic:
+                    break
+                dic[name] = value
+            try:
+                return int(dic["☁ "+self.name])
+            except:
+                raise Exception("变量不存在")
+        except NameError:
+            raise Exception("连接不存在,您没有建立过连接,请使用open函数建立连接\neg.\ncloud=XesCloud('num')\ncloud.open()")
+
+class XesSubmit():
+    def __init__(self,cookie) -> None:
+        self.cookie = cookie
+        self.headers = {
+            'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.63 Safari/537.36 Edg/102.0.1245.33',
+            'Cookie':cookie
+            }
+
+    def submitFeedback(self,text:str,_type:str,contact:str = '',images:list = []):
+        payload = {
+            "contact":contact,
+            "content":text,
+            "images":images,
+            "score":0,
+            "source_type":_type
+        }
+        requests.post('https://code.xueersi.com/api/index/feedback/submit',headers=self.headers,json=payload)
+
+    def submitReport(self):
         pass
